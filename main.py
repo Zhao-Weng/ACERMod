@@ -5,6 +5,7 @@ import os
 import gym
 import torch
 from torch import multiprocessing as mp
+import pdb
 
 from model import ActorCritic
 from optim import SharedRMSprop
@@ -13,10 +14,13 @@ from test import test
 from utils import Counter
 
 
+STATE_SPACE = 24
+ACTION_SPACE = 81
+
 parser = argparse.ArgumentParser(description='ACER')
 parser.add_argument('--seed', type=int, default=123, help='Random seed')
 parser.add_argument('--num-processes', type=int, default=6, metavar='N', help='Number of training async agents (does not include single validation agent)')
-parser.add_argument('--T-max', type=int, default=500000, metavar='STEPS', help='Number of training steps')
+parser.add_argument('--T-max', type=int, default=50000 * 5, metavar='STEPS', help='Number of training steps')
 parser.add_argument('--t-max', type=int, default=100, metavar='STEPS', help='Max number of forward steps for A3C before update')
 parser.add_argument('--max-episode-length', type=int, default=500, metavar='LENGTH', help='Maximum episode length')
 parser.add_argument('--hidden-size', type=int, default=32, metavar='SIZE', help='Hidden size of LSTM cell')
@@ -54,20 +58,22 @@ if __name__ == '__main__':
   print(' ' * 26 + 'Options')
   for k, v in vars(args).items():
     print(' ' * 26 + k + ': ' + str(v))
-  args.env = 'CartPole-v1'  # TODO: Remove hardcoded environment when code is more adaptable
+  # args.env = 'CartPole-v1'  # TODO: Remove hardcoded environment when code is more adaptable
   # mp.set_start_method(platform.python_version()[0] == '3' and 'spawn' or 'fork')  # Force true spawning (not forking) if available
   torch.manual_seed(args.seed)
   T = Counter()  # Global shared counter
 
   # Create shared network
-  env = gym.make(args.env)
-  shared_model = ActorCritic(env.observation_space, env.action_space, args.hidden_size)
+
+  # env = gym.make(args.env)
+  # pdb.set_trace()
+  shared_model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
   shared_model.share_memory()
   if args.model and os.path.isfile(args.model):
     # Load pretrained weights
     shared_model.load_state_dict(torch.load(args.model))
   # Create average network
-  shared_average_model = ActorCritic(env.observation_space, env.action_space, args.hidden_size)
+  shared_average_model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
   shared_average_model.load_state_dict(shared_model.state_dict())
   shared_average_model.share_memory()
   for param in shared_average_model.parameters():
@@ -75,7 +81,7 @@ if __name__ == '__main__':
   # Create optimiser for shared network parameters with shared statistics
   optimiser = SharedRMSprop(shared_model.parameters(), lr=args.lr, alpha=args.rmsprop_decay)
   optimiser.share_memory()
-  env.close()
+  # env.close()
 
   # Start validation agent
   processes = []

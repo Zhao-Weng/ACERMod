@@ -5,6 +5,8 @@ import gym
 import torch
 from torch.autograd import Variable
 
+from parser import Parser
+
 from model import ActorCritic
 from utils import state_to_tensor, plot_line
 
@@ -12,9 +14,10 @@ from utils import state_to_tensor, plot_line
 def test(rank, args, T, shared_model):
   torch.manual_seed(args.seed + rank)
 
-  env = gym.make(args.env)
-  env.seed(args.seed + rank)
-  model = ActorCritic(env.observation_space, env.action_space, args.hidden_size)
+  # env = gym.make(args.env)
+  # env.seed(args.seed + rank)
+  # model = ActorCritic(env.observation_space, env.action_space, args.hidden_size)
+  model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
   model.eval()
 
   can_test = True  # Test flag
@@ -43,8 +46,8 @@ def test(rank, args, T, shared_model):
             reward_sum = 0
 
           # Optionally render validation states
-          if args.render:
-            env.render()
+          # if args.render:
+          #   env.render()
 
           # Calculate policy
           policy, _, _, (hx, cx) = model(Variable(state, volatile=True), (hx.detach(), cx.detach()))  # Break graph for memory efficiency
@@ -85,4 +88,4 @@ def test(rank, args, T, shared_model):
 
     time.sleep(0.001)  # Check if available to test every millisecond
 
-  env.close()
+  # env.close()

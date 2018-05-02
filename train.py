@@ -7,9 +7,15 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 
+from parser import Parser
+
 from memory import EpisodicReplayMemory
 from model import ActorCritic
 from utils import state_to_tensor
+
+
+STATE_SPACE = 8
+ACTION_SPACE = 81
 
 
 # Knuth's algorithm for generating Poisson samples
@@ -147,10 +153,11 @@ def _train(args, T, model, shared_model, shared_average_model, optimiser, polici
 def train(rank, args, T, shared_model, shared_average_model, optimiser):
   torch.manual_seed(args.seed + rank)
 
-  env = gym.make(args.env)
-  env.seed(args.seed + rank)
-  model = ActorCritic(env.observation_space, env.action_space, args.hidden_size)
+  # env = gym.make(args.env)
+  # env.seed(args.seed + rank)
+  model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
   model.train()
+  parser = Parser("RLDataset.csv")
 
   if not args.on_policy:
     # Normalise memory capacity by number of training processes
@@ -172,7 +179,8 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         hx, avg_hx = Variable(torch.zeros(1, args.hidden_size)), Variable(torch.zeros(1, args.hidden_size))
         cx, avg_cx = Variable(torch.zeros(1, args.hidden_size)), Variable(torch.zeros(1, args.hidden_size))
         # Reset environment and done flag
-        state = state_to_tensor(env.reset())
+        # state = state_to_tensor(env.reset())
+        state = parser.state[0]
         done, episode_length = False, 0
       else:
         # Perform truncated backpropagation-through-time (allows freeing buffers after backwards call)

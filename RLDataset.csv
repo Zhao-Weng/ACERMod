@@ -1,0 +1,7 @@
+node,alpha,beta,gamma,u_alpha,u_beta,u_gamma,question,action_node,action_channel,action_size,action_scale,reward
+1,0.78,0.4,0,0,0,0,1,1,1,1,2,0.2
+2,0.45,0,0.778,0,0,0,0
+3,0.2,0,0.56,0,0,0,0
+1,0.78,0.4,0,1,0,0,0,1,1,2,2,0.2
+2,0.45,0,0.778,0,0,0,0
+3,0.2,0,0.56,0,0,0,0
