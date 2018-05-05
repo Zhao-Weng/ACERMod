@@ -14,7 +14,7 @@ from model import ActorCritic
 from utils import state_to_tensor
 
 
-STATE_SPACE = 8
+STATE_SPACE = 24
 ACTION_SPACE = 81
 
 
@@ -168,7 +168,7 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
 
   while T.value() <= args.T_max:
     # On-policy episode loop
-    while True:
+    while False:
       # Sync with shared model at least every t_max steps
       model.load_state_dict(shared_model.state_dict())
       # Get starting timestep
@@ -180,7 +180,8 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         cx, avg_cx = Variable(torch.zeros(1, args.hidden_size)), Variable(torch.zeros(1, args.hidden_size))
         # Reset environment and done flag
         # state = state_to_tensor(env.reset())
-        state = parser.state[0]
+        state = state_to_tensor(parser.states[0]).view(1, STATE_SPACE)
+        print(state)
         done, episode_length = False, 0
       else:
         # Perform truncated backpropagation-through-time (allows freeing buffers after backwards call)
@@ -199,8 +200,12 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         action = policy.multinomial().data[0, 0]  # Graph broken as loss for stochastic action calculated manually
 
         # Step
-        next_state, reward, done, _ = env.step(action)
-        next_state = state_to_tensor(next_state)
+        # next_state, reward, done, _ = env.step(action)
+        next_state = parser.states[1]
+        reward = parser.rewards[0]
+        done = True
+
+        next_state = state_to_tensor(next_state).view(1, 24)
         reward = args.reward_clip and min(max(reward, -1), 1) or reward  # Optionally clamp rewards
         done = done or episode_length >= args.max_episode_length  # Stop episodes at a max length
         episode_length += 1  # Increase episode counter

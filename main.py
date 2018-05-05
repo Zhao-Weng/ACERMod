@@ -81,21 +81,24 @@ if __name__ == '__main__':
   # Create optimiser for shared network parameters with shared statistics
   optimiser = SharedRMSprop(shared_model.parameters(), lr=args.lr, alpha=args.rmsprop_decay)
   optimiser.share_memory()
+
+  train(1, args, T, shared_model, shared_average_model, optimiser)
   # env.close()
 
   # Start validation agent
   processes = []
-  p = mp.Process(target=test, args=(0, args, T, shared_model))
-  p.start()
-  processes.append(p)
+  # p = mp.Process(target=test, args=(0, args, T, shared_model))
+  # p.start()
+  # processes.append(p)
 
-  if not args.evaluate:
-    # Start training agents
-    for rank in range(1, args.num_processes + 1):
-      p = mp.Process(target=train, args=(rank, args, T, shared_model, shared_average_model, optimiser))
-      p.start()
-      processes.append(p)
+  # if not args.evaluate:
+  #   # Start training agents
+  #   # args.num_processes + 1
+  #   for rank in range(1, 2):
+  #     p = mp.Process(target=train, args=(rank, args, T, shared_model, shared_average_model, optimiser))
+  #     p.start()
+  #     processes.append(p)
 
-  # Clean up
-  for p in processes:
-    p.join()
+  # # Clean up
+  # for p in processes:
+  #   p.join()
