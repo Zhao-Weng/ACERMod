@@ -8,14 +8,15 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 
 from parser import Parser
+import pdb
 
 from memory import EpisodicReplayMemory
 from model import ActorCritic
 from utils import state_to_tensor
 
 
-STATE_SPACE = 24
-ACTION_SPACE = 81
+STATE_SPACE = 22 * 5 + 1
+ACTION_SPACE = 22 * 3 * 3
 
 
 # Knuth's algorithm for generating Poisson samples
@@ -118,7 +119,11 @@ def _train(args, T, model, shared_model, shared_average_model, optimiser, polici
     A = Qret - Vs[i]
 
     # Log policy log(π(a_i|s_i; θ))
+    # pdb.set_trace()
+    # print(policies[i])
+    # print(actions[i])
     log_prob = policies[i].gather(1, actions[i]).log()
+
     # g ← min(c, ρ_a_i)∙∇θ∙log(π(a_i|s_i; θ))∙A
     single_step_policy_loss = -(rho.gather(1, actions[i]).clamp(max=args.trace_max) * log_prob * A.detach()).mean(0)  # Average over batch
     # Off-policy bias correction
@@ -149,6 +154,7 @@ def _train(args, T, model, shared_model, shared_average_model, optimiser, polici
   _update_networks(args, T, model, shared_model, shared_average_model, policy_loss + value_loss, optimiser)
 
 
+
 # Acts and trains model
 def train(rank, args, T, shared_model, shared_average_model, optimiser):
   torch.manual_seed(args.seed + rank)
@@ -157,11 +163,17 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
   # env.seed(args.seed + rank)
   model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
   model.train()
-  parser = Parser("RLDataset.csv")
 
   if not args.on_policy:
     # Normalise memory capacity by number of training processes
-    memory = EpisodicReplayMemory(args.memory_capacity // args.num_processes, args.max_episode_length)
+    # memory = EpisodicReplayMemory(args.memory_capacity // args.num_processes, args.max_episode_length)
+    parser = Parser()
+    parser.parseInit('state.csv')
+    parser.generateRandomDataset()
+    parser.writeToFile('output.csv')
+    memory = parser.memory
+    print("hello")
+
 
   t = 1  # Thread step counter
   done = True  # Start new episode
@@ -245,6 +257,8 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         break
 
     # Train the network off-policy when enough experience has been collected
+    # print(len(memory))
+    # print(args.replay_start)
     if not args.on_policy and len(memory) >= args.replay_start:
       # Sample a number of off-policy episodes based on the replay ratio
       for _ in range(_poisson(args.replay_ratio)):
@@ -257,6 +271,7 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
 
         # Lists of outputs for training
         policies, Qs, Vs, actions, rewards, old_policies, average_policies = [], [], [], [], [], [], []
+        # print(len(trajectories))
 
         # Loop over trajectories (bar last timestep)
         for i in range(len(trajectories) - 1):
@@ -283,9 +298,11 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         # Qret = 0 for terminal s, V(s_i; θ) otherwise
         Qret = ((1 - done) * Qret).detach()
 
+        T.increment()
+
         # Train the network off-policy
         _train(args, T, model, shared_model, shared_average_model, optimiser, policies, Qs, Vs,
                actions, rewards, Qret, average_policies, old_policies=old_policies)
     done = True
-
-  env.close()
+  pdb.set_trace()
+  # env.close()

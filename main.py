@@ -14,13 +14,13 @@ from test import test
 from utils import Counter
 
 
-STATE_SPACE = 24
-ACTION_SPACE = 81
+STATE_SPACE = 22 * 5 + 1
+ACTION_SPACE = 22 * 3 * 3
 
 parser = argparse.ArgumentParser(description='ACER')
 parser.add_argument('--seed', type=int, default=123, help='Random seed')
 parser.add_argument('--num-processes', type=int, default=6, metavar='N', help='Number of training async agents (does not include single validation agent)')
-parser.add_argument('--T-max', type=int, default=50000 * 5, metavar='STEPS', help='Number of training steps')
+parser.add_argument('--T-max', type=int, default=1000, metavar='STEPS', help='Number of training steps')
 parser.add_argument('--t-max', type=int, default=100, metavar='STEPS', help='Max number of forward steps for A3C before update')
 parser.add_argument('--max-episode-length', type=int, default=500, metavar='LENGTH', help='Maximum episode length')
 parser.add_argument('--hidden-size', type=int, default=32, metavar='SIZE', help='Hidden size of LSTM cell')
@@ -28,7 +28,7 @@ parser.add_argument('--model', type=str, metavar='PARAMS', help='Pretrained mode
 parser.add_argument('--on-policy', action='store_true', help='Use pure on-policy training (A3C)')
 parser.add_argument('--memory-capacity', type=int, default=1000000, metavar='CAPACITY', help='Experience replay memory capacity')
 parser.add_argument('--replay-ratio', type=int, default=4, metavar='r', help='Ratio of off-policy to on-policy updates')
-parser.add_argument('--replay-start', type=int, default=20000, metavar='EPISODES', help='Number of transitions to save before starting off-policy training')
+parser.add_argument('--replay-start', type=int, default=100, metavar='EPISODES', help='Number of transitions to save before starting off-policy training')
 parser.add_argument('--discount', type=float, default=0.99, metavar='γ', help='Discount factor')
 parser.add_argument('--trace-decay', type=float, default=1, metavar='λ', help='Eligibility trace decay factor')
 parser.add_argument('--trace-max', type=float, default=10, metavar='c', help='Importance weight truncation (max) value')
@@ -39,7 +39,7 @@ parser.add_argument('--reward-clip', action='store_true', help='Clip rewards to 
 parser.add_argument('--lr', type=float, default=0.0007, metavar='η', help='Learning rate')
 parser.add_argument('--lr-decay', action='store_true', help='Linearly decay learning rate to 0')
 parser.add_argument('--rmsprop-decay', type=float, default=0.99, metavar='α', help='RMSprop decay factor')
-parser.add_argument('--batch-size', type=int, default=16, metavar='SIZE', help='Off-policy batch size')
+parser.add_argument('--batch-size', type=int, default=1, metavar='SIZE', help='Off-policy batch size')
 parser.add_argument('--entropy-weight', type=float, default=0.0001, metavar='β', help='Entropy regularisation weight')
 parser.add_argument('--max-gradient-norm', type=float, default=40, metavar='VALUE', help='Gradient L2 normalisation')
 parser.add_argument('--evaluate', action='store_true', help='Evaluate only')
