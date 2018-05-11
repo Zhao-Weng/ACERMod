@@ -267,8 +267,8 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         trajectories = memory.sample_batch(args.batch_size, maxlen=args.t_max)
 
         # Reset hidden state
-        hx, avg_hx = Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size)), Variable(torch.zeros(args.batch_size, args.hidden_size))
-        cx, avg_cx = Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size)), Variable(torch.zeros(args.batch_size, args.hidden_size))
+        hx, avg_hx = Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size)), Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size))
+        cx, avg_cx = Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size)), Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size))
 
         # Lists of outputs for training
         policies, Qs, Vs, actions, rewards, old_policies, average_policies = [], [], [], [], [], [], []
