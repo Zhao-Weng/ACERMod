@@ -16,6 +16,7 @@ from utils import Counter
 
 STATE_SPACE = 22 * 5 + 1
 ACTION_SPACE = 22 * 3 * 3
+NUM_LAYERS = 2
 
 parser = argparse.ArgumentParser(description='ACER')
 parser.add_argument('--seed', type=int, default=123, help='Random seed')
@@ -67,13 +68,13 @@ if __name__ == '__main__':
 
   # env = gym.make(args.env)
   # pdb.set_trace()
-  shared_model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
+  shared_model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size, NUM_LAYERS)
   shared_model.share_memory()
   if args.model and os.path.isfile(args.model):
     # Load pretrained weights
     shared_model.load_state_dict(torch.load(args.model))
   # Create average network
-  shared_average_model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
+  shared_average_model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size, NUM_LAYERS)
   shared_average_model.load_state_dict(shared_model.state_dict())
   shared_average_model.share_memory()
   for param in shared_average_model.parameters():

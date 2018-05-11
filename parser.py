@@ -10,6 +10,7 @@ from model import ActorCritic
 
 STATE_SPACE = 22 * 5 + 1
 ACTION_SPACE = 22 * 3 * 3
+NUM_LAYERS = 2
 
 def isinteger(a):
     try:
@@ -77,7 +78,7 @@ class Parser:
 		hidden_size = 32
 		memory_capacity = 1000
 		max_episode_length = 10
-		model = ActorCritic(STATE_SPACE, ACTION_SPACE, hidden_size)
+		model = ActorCritic(STATE_SPACE, ACTION_SPACE, hidden_size, NUM_LAYERS)
 		minLen = 5
 		maxLen = 10
 		numNode = 22   # [nodeId, bubbleSiz, bubbleScale]
@@ -86,8 +87,9 @@ class Parser:
 
 		self.memory = EpisodicReplayMemory(memory_capacity, max_episode_length)
 		for i in range(1, 101):
-			hx = Variable(torch.zeros(1, hidden_size))
-			cx = Variable(torch.zeros(1, hidden_size))
+			hx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+			# print(hx)
+			cx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
 			state = self.state + [0]
 			rand = random.randint(minLen, maxLen)
 			reward = random.uniform(0,10)
@@ -129,8 +131,8 @@ class Parser:
 					file.write(str(50) + ',')
 			file.write('\n')
 
-	def writeBackMemory(self, arg):
-		
+	# def writeBackMemory(self, arg):
+
 
 
 

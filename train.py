@@ -17,6 +17,7 @@ from utils import state_to_tensor
 
 STATE_SPACE = 22 * 5 + 1
 ACTION_SPACE = 22 * 3 * 3
+NUM_LAYERS = 2
 
 
 # Knuth's algorithm for generating Poisson samples
@@ -161,7 +162,7 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
 
   # env = gym.make(args.env)
   # env.seed(args.seed + rank)
-  model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size)
+  model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size, NUM_LAYERS)
   model.train()
 
   if not args.on_policy:
@@ -266,8 +267,8 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         trajectories = memory.sample_batch(args.batch_size, maxlen=args.t_max)
 
         # Reset hidden state
-        hx, avg_hx = Variable(torch.zeros(args.batch_size, args.hidden_size)), Variable(torch.zeros(args.batch_size, args.hidden_size))
-        cx, avg_cx = Variable(torch.zeros(args.batch_size, args.hidden_size)), Variable(torch.zeros(args.batch_size, args.hidden_size))
+        hx, avg_hx = Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size)), Variable(torch.zeros(args.batch_size, args.hidden_size))
+        cx, avg_cx = Variable(torch.zeros(NUM_LAYERS, args.batch_size, args.hidden_size)), Variable(torch.zeros(args.batch_size, args.hidden_size))
 
         # Lists of outputs for training
         policies, Qs, Vs, actions, rewards, old_policies, average_policies = [], [], [], [], [], [], []
