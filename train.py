@@ -153,6 +153,7 @@ def _train(args, T, model, shared_model, shared_average_model, optimiser, polici
 
   # Update networks
   _update_networks(args, T, model, shared_model, shared_average_model, policy_loss + value_loss, optimiser)
+  print(policy_loss)
 
 
 
@@ -305,5 +306,5 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         _train(args, T, model, shared_model, shared_average_model, optimiser, policies, Qs, Vs,
                actions, rewards, Qret, average_policies, old_policies=old_policies)
     done = True
-  pdb.set_trace()
+  # pdb.set_trace()
   # env.close()

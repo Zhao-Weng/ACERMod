@@ -19,7 +19,7 @@ class ActorCritic(nn.Module):
   def forward(self, x, h):
     x = self.relu(self.fc1(x))
     x = x.view(1, 1, 32)
-    print(x.size())
+    # print(x.size())
     # print(h.size())
     hlower, hupper = self.lstm(x, h)  # h is (hidden state, cell state)
 
