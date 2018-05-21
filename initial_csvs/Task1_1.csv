@@ -21,3 +21,4 @@ node id,node name,alpha,beta,gamma
 20,left hip,0.78,0.79,0.76
 21,left knee,0.89,0,0.8
 22,left ankle,0.92,0.82,0.85
+1,Task1_1.jpg,Is the person in the image running or walking?,Running,Walking

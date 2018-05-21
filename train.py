@@ -152,8 +152,9 @@ def _train(args, T, model, shared_model, shared_average_model, optimiser, polici
     Qret = truncated_rho * (Qret - Q.detach()) + Vs[i].detach()
 
   # Update networks
+  print ((policy_loss.data + value_loss.data) / t)
   _update_networks(args, T, model, shared_model, shared_average_model, policy_loss + value_loss, optimiser)
-  print(policy_loss)
+  # print(policy_loss)
 
 
 
@@ -163,24 +164,34 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
 
   # env = gym.make(args.env)
   # env.seed(args.seed + rank)
-  model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size, NUM_LAYERS)
+  # model = ActorCritic(STATE_SPACE, ACTION_SPACE, args.hidden_size, NUM_LAYERS)
+  model = torch.load('training_cps/training1_2_layer2_1-0_270000.pt')
   model.train()
 
   if not args.on_policy:
     # Normalise memory capacity by number of training processes
     # memory = EpisodicReplayMemory(args.memory_capacity // args.num_processes, args.max_episode_length)
     parser = Parser()
-    parser.parseInit('state.csv')
-    parser.generateRandomDataset()
-    parser.writeToFile('output.csv')
+    several_csvs = ['initial_csvs/Task1_3.csv', 'initial_csvs/Task1_4.csv', 'initial_csvs/Task1_5.csv']
+    parser.parseInit(several_csvs)
+
+    # parser.generateRandomDataset(100)
+    # parser.writeToFile('outputs/output1_several_layer{0}_0-4.csv'.format(parser.layer))
+
+    parser.readAMTBatch('AMT_rewards/AMT1_345_layer2_0-8.csv')
+    several_outputs = ['outputs/output1_3_layer2_0-8.csv', 'outputs/output1_4_layer2_0-8.csv', 'outputs/output1_5_layer2_0-8.csv']
+    parser.writeBackMemory(several_outputs)
+
     memory = parser.memory
-    print("hello")
+    # pdb.set_trace()
 
 
   t = 1  # Thread step counter
   done = True  # Start new episode
 
   while T.value() <= args.T_max:
+    if (T.value() % 10000 == 0):   # 500 iterations around 1 min. 10000 iterations 20 mins
+      torch.save(model, 'training_cps/training1_2_layer2_1-0_{0}.pt'.format(T.value() + 270000))
     # On-policy episode loop
     while False:
       # Sync with shared model at least every t_max steps
@@ -300,11 +311,14 @@ def train(rank, args, T, shared_model, shared_average_model, optimiser):
         # Qret = 0 for terminal s, V(s_i; θ) otherwise
         Qret = ((1 - done) * Qret).detach()
 
-        T.increment()
-
         # Train the network off-policy
         _train(args, T, model, shared_model, shared_average_model, optimiser, policies, Qs, Vs,
                actions, rewards, Qret, average_policies, old_policies=old_policies)
     done = True
+    T.increment()
   # pdb.set_trace()
   # env.close()
+
+  # task, image, LSTM layer, epsilon
+
+  

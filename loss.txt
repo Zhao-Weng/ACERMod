@@ -1,0 +1,108 @@
+300000 iterations 1,2 half: 
+Variable containing:
+ 2975.6233
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 858.6217
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 4943.4761
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 9586.2041
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 301.6799
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 262.4349
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 771.1502
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 1391.2501
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 16956.1582
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 8120.7300
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 134.0560
+[torch.FloatTensor of size 1]
+
+Variable containing:
+ 240.1482
+
+
+after training with 345 for 600000 iterations
+
+ 13976.4639
+[torch.FloatTensor of size 1]
+
+
+ 3121.5889
+[torch.FloatTensor of size 1]
+
+
+ 21533.0195
+[torch.FloatTensor of size 1]
+
+
+ 426.6929
+[torch.FloatTensor of size 1]
+
+
+ 53010.8438
+[torch.FloatTensor of size 1]
+
+
+ 2900.6487
+[torch.FloatTensor of size 1]
+
+
+ 8252.1973
+[torch.FloatTensor of size 1]
+
+
+ 45493.2148
+[torch.FloatTensor of size 1]
+
+
+ 67350.6562
+[torch.FloatTensor of size 1]
+
+
+ 16178.9443
+[torch.FloatTensor of size 1]
+
+
+ 3812.6707
+[torch.FloatTensor of size 1]
+
+
+ 4514.0957
+[torch.FloatTensor of size 1]
+
+
+ 45741.2305
+[torch.FloatTensor of size 1]
+
+
+ 7642.8013
+[torch.FloatTensor of size 1]
+
+
+

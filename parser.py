@@ -1,6 +1,7 @@
 import numpy as np
 import pdb
 import random
+import math
 
 import torch
 from torch import nn
@@ -12,9 +13,10 @@ STATE_SPACE = 22 * 5 + 1
 ACTION_SPACE = 22 * 3 * 3
 NUM_LAYERS = 2
 
-def isinteger(a):
+
+def isFloat(a):
     try:
-        int(a)
+        float(a)
         return True
     except ValueError:
         return False
@@ -22,123 +24,374 @@ def isinteger(a):
 
 class Parser:
 	def __init__(self):
-		self.states = []
-		self.actions = []
-		self.rewards = []
 
-		self.state = []
+		self.questions = []
+		self.imageNames = []
+		self.option1s = []
+		self.option2s = []
+		self.body_coords = []
+		self.prefixes = []
+		self.layer = 2
+
+		self.correctAnswer = 0
+		self.rewardsWithoutE = []
+
+		self.states = []
 		self.hm = {}
 		self.memory = []
 		self.output = []
 
-
-	def parseOne(self, arg):
-		i = 0
-		states = []
-		actions = []
-		rewards = []
-		state = []
-		action = []
-		for line in open(arg):
-			if (i > 0):
-				curRow = line.split(',')
-				curRow = np.array(list(map(float, curRow)))
-				if (i % 3 == 1):
-					state = np.array(curRow[0:8])
-					numpyAction = np.array(curRow[8:12])
-					actions.append(numpyAction)
-					rewards.append(curRow[12])
-				else:
-					state = np.concatenate((state, curRow), axis=0)
-					if (i % 3 == 0):
-						numpyState = np.array(state)
-						states.append(numpyState)
-			i += 1
-		self.states = np.array(states)
-		self.actions = torch.FloatTensor(np.array(actions))
-		self.rewards = torch.FloatTensor(np.array(rewards))
+		self.epsilon = 0.4
+		self.minLen = 5
+		self.maxLen = 30
+		self.numNode = 22   # [nodeId, bubbleSiz, bubbleScale]
+		self.bubbleSize = 3 
+		self.bubbleScale = 3
 
 
-	def parseInit(self, arg):
-		state = []
-		i = 0
-		for line in open(arg):
-			if (i > 0):
-				curRow = line.split(',')
-				self.hm[i] = curRow[1]
-				curRow = curRow[0:1] + curRow[2:] + [0] 
-				
-				curRow = (list(map(float, curRow)))
-				state = state + curRow
-			i += 1
-		self.state = state
 
 
-	def generateRandomDataset(self):
+	def parseInit(self, args):
+		for arg in args:
+			state = []
+			i = 0
+			for line in open(arg):
+				if (i > 0):
+					curRow = line.rstrip().split(',')
+					if (not isFloat(curRow[2])):   # last row for other info
+						state.append(float(curRow[0]))
+						self.imageNames.append(curRow[1])
+						self.questions.append(curRow[2])
+						self.option1s.append(curRow[3])
+						self.option2s.append(curRow[4])
+						imageId = 0
+						if (isFloat(curRow[1][7])):
+							imageId = curRow[1][6: 8]
+						else:
+							imageId = curRow[1][6]
+						self.body_coords.append('task{0}_img{1}_all_layer_coords.csv'.format(curRow[1][4], imageId))
+						self.prefixes.append('task{0}_{1}_{2}_0-4_'.format(curRow[1][4], imageId, self.layer))
+					else:
+						self.hm[i] = curRow[1]
+						curRow = curRow[0:1] + curRow[2:] + [0] 
+						
+						curRow = (list(map(float, curRow)))
+						state = state + curRow
+				i += 1
+			self.states.append(state)
+
+
+	def generateRandomDataset(self,num):
 		hidden_size = 32
-		memory_capacity = 1000
-		max_episode_length = 10
-		model = ActorCritic(STATE_SPACE, ACTION_SPACE, hidden_size, NUM_LAYERS)
-		minLen = 5
-		maxLen = 10
-		numNode = 22   # [nodeId, bubbleSiz, bubbleScale]
-		bubbleSize = 3 
-		bubbleScale = 3
+		model = torch.load('training_cps/training1_2_layer2_1-0_270000.pt')
+		# model = ActorCritic(STATE_SPACE, ACTION_SPACE, hidden_size, NUM_LAYERS)
+		# pre_policy = np.zeros((1, 198))
+		# pre_policy = torch.FloatTensor(pre_policy)
+		for index in range(len(self.states)):
+			state = self.states[index]
+			pre_state = torch.FloatTensor(np.zeros((1, 111)))
+			pre_actionVal = 0
+			# file = open('policy.txt', 'w')
+			for i in range(1, num + 1):
+				count = 0
+				hx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+				# print(hx)
+				cx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+				# state = self.state
+				rand = random.randint(self.minLen, self.maxLen)
+				reward = random.uniform(0,10)
+				tensorState = torch.zeros(1, STATE_SPACE)
+				minS = float("inf")
+				for timestep in range(1, rand):  # each episode
 
-		self.memory = EpisodicReplayMemory(memory_capacity, max_episode_length)
-		for i in range(1, 101):
-			hx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
-			# print(hx)
-			cx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
-			state = self.state + [0]
-			rand = random.randint(minLen, maxLen)
-			reward = random.uniform(0,10)
-			tensorState = torch.zeros(1, STATE_SPACE)
-			for timestep in range(1, rand):  # each episode
-				question = random.randint(1, numNode) 
-				state = state[0: -1] + [question]
-				tensorState = torch.FloatTensor(np.array(state)).view(1, STATE_SPACE) # new state
-				randIdx = random.randint(0, bubbleSize * bubbleScale - 1)
-				action = []
-				action.append(question)
-				for k in range(2):
-					action.append(randIdx % bubbleSize)
-					randIdx = randIdx // bubbleSize
-				
-				policy, _, _, (hx, cx) = model(Variable(tensorState), (hx, cx))
-				actionSingleVal = (action[0] - 1) * bubbleScale * bubbleSize + action[1] * bubbleScale + action[2]
-				self.memory.append(tensorState, actionSingleVal, reward, policy.data)
-				self.output.append(['trial_' + str(i) + '_' + str(timestep), 'Show me ' + self.hm[question], action])
-				state[(action[0] - 1) * 5 + 4] = 1
+					tensorState = torch.FloatTensor(np.array(state)).view(1, STATE_SPACE) # new state				
+					actionSingleVal = random.randint(0, 197)
+					policy, _, _, (hx, cx) = model(Variable(tensorState), (hx, cx))
+					#pre_policy = policy
+					prob = random.uniform(0, 1)
+					if (prob > self.epsilon):     # for prob epsilon choose action
+						# file.write(str(tensorState - pre_state) + '\n')
+						actionSingleVal = policy.max(1)[1].data[0]
 
-			self.output.append([])
-			self.memory.append(tensorState, None, None, None)
+					if (actionSingleVal == pre_actionVal):
+						count += 1
+						if (count > 2):
+							randVal = random.randint(1, 22)
+							actionSingleVal = (actionSingleVal + 9 * randVal) % 198
+					else:
+						count = 0	
+					pre_actionVal = actionSingleVal	
+					action = Parser._convertSingleToArray(actionSingleVal)
+					question = action[0]		
+
+					
+					# print(question)
+					self.output.append([self.prefixes[index] + 'trial_' + str(i) + '_' + str(timestep), 'Show me ' + self.hm[question],
+										str(action[0]), str(action[1]), str(action[2]), 
+						                self.imageNames[index], self.questions[index], self.option1s[index], self.option2s[index], 
+						                self.body_coords[index]])
+					# pre_policy = policy.data
+					pre_state = tensorState
+					# print(action[0])
+					state[(action[0] - 1) * 5 + 4] = 1
+					
+					
+				self.output.append([])
 
 
 	def writeToFile(self, arg):
 		file = open(arg,'w')
-		file.write('timestep,question ,action_node_id, bubble_size, bubble_scale\n')
+		file.write('timestep,question ,action_node_id, bubble_size, bubble_scale, '\
+				   'image_name, question, option1, option2,body_coords\n')
 		for item in self.output:
 			if (len(item) > 0): # not finished for current episode
-				for i in range(len(item)- 1):
-					file.write(item[i] + ',')
-				# pdb.set_trace()
-				for feature in item[-1]:
-					file.write(str(feature) + ',')
-				#file.write('"' + str(item[-1]) + '"') # last action list
+				string = ''
+				for feature in item:
+					string += feature + ','
+				file.write(string[:-1])
 			else:
-				for i in range(5): # fill 50 in the empty line
-					file.write(str(50) + ',')
+				string = ''
+				for i in range(10): # fill 50 in the empty line
+					string += str(-1) + ','
+				file.write(string[:-1])
+			# for 4 more columns to indicate 4 types of additional info
 			file.write('\n')
 
-	# def writeBackMemory(self, arg):
+
+	def _getStorage(self, several_outputs):
+		scalaHm = {0: 1, 1: 9, 2: 15}
+		sizeHm = {0: 1.45, 1: 2.15, 2: 3.15}
+		hidden_size = 32
+		model = ActorCritic(STATE_SPACE, ACTION_SPACE, hidden_size, NUM_LAYERS)
+		memory_capacity = 10000
+		max_episode_length = 10
+		self.memory = EpisodicReplayMemory(memory_capacity, max_episode_length)
+
+		states = self.states
 
 
+		# storage will have format [[[], [], []], [episode2], [], []]. the last 
+		# element of each epsidoe is [tensorState, final reward]
+		storage = []   
+		storage.append([])
+		episodeI = 0
+		
+		for index in range(len(states)):
+			state = states[index]
+			hx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+			cx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+			tensorState = torch.zeros(1, STATE_SPACE)
+			minS = float("inf")
+			with open('outputs/' + several_outputs[index]) as f:
+				next(f)
+				for line in f:
+					curRow = line.rstrip().split(',')
+					if (curRow[0] == '-1' or curRow[0] == '50'):  # end of an episode
+						sigma = minS / (len(storage[episodeI]))
+						entropy = 1 + 0.5 * math.log(39.4 * sigma)
+						# plugging in same reward for all turns in episode... the ACER code uses lambda return to scale them
+						# print(episodeI)
+						storage[episodeI].append([tensorState, self.rewardsWithoutE[episodeI] + entropy])
+						episodeI += 1
+						# print(episodeI)
+						if (episodeI >= 1583):
+							break
+						hx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+						cx = Variable(torch.zeros(NUM_LAYERS, 1, hidden_size))
+						state = states[index]  # prepare for next episode
+						storage.append([])
+						minS = float("inf")
+					else:
+
+						tensorState = torch.FloatTensor(np.array(state)).view(1, STATE_SPACE)
+						[action_node_id, bubble_size, bubble_scale] = list(map(int, (curRow[2:5])))
+						actionSingleVal = (action_node_id - 1) * self.bubbleScale * self.bubbleSize +  \
+										   bubble_size * self.bubbleScale + bubble_scale
+
+						minS = min(minS, pow(scalaHm[bubble_scale], 2) * pow(sizeHm[bubble_size], 2))
+						policy, _, _, (hx, cx) = model(Variable(tensorState), (hx, cx))
+						storage[episodeI].append([tensorState, actionSingleVal, policy.data])
+						state[(action_node_id - 1) * 5 + 4] = 1
+		return storage		
+
+
+
+	# write output.csv file and rewards into self.memory for training
+	def writeBackMemory(self, several_outputs):
+		storage = self._getStorage(several_outputs)
+			# pdb.set_trace()
+		for episode in storage:
+			last = episode[-1] # last one is reward
+			reward = last[1]
+			for i in range(len(episode) - 1):
+				each = episode[i]
+				tensorState = each[0]
+				actionSingleVal = each[1]
+				policyData = each[2]
+				self.memory.append(tensorState, actionSingleVal, reward, policyData)
+			tensorState = last[0]
+			self.memory.append(tensorState, None, None, None)
+		# pdb.set_trace()
+
+
+	def appendToAMTRewardsAndBubbleLen(self, several_outputs, several_rewards):
+		storage = self._getStorage(several_outputs)
+
+		# append to file
+		episodeI = 0
+		for arg in several_rewards: 
+
+			inputFile = open('AMT_rewards/' + arg, 'r')
+			outputFile = open('appended_AMT_rewards/' + arg[:-4] + '_appended.csv', 'w')
+			firstLine = inputFile.readline()
+			# firstLine.rstrip('\n') + ', "bubbleLen", "reward"\n'
+			outputFile.write(firstLine)
+			for line in inputFile:
+				episode = storage[episodeI]
+				episodeLen = len(episode) - 1
+				last = episode[-1] # last one is reward
+				reward = last[1]
+				outputFile.write(('{0},{1},{2}\n').format(line.rstrip('\n'), str(episodeLen), str(reward)))
+				episodeI += 1
+
+
+	def appendDiscourseAndStructure(self, structureFile, several_outputs):
+		# storage = self._getStorage(several_outputs)
+		# append to file
+		parentHm, childrenHm = Parser._extractStructure(structureFile)
+		for arg in several_outputs: 
+			inputFile = open('outputs/' + arg, 'r')
+			outputFile = open('appended_outputs/' + arg[:-4] + '_appended.csv', 'w')
+			firstLine = inputFile.readline()
+			outputFile.write(firstLine.rstrip() + ', structure, discourse\n')
+			pre_acton_node_id, pre_bubble_size, pre_bubble_scale = None, None, None
+			index = 0
+			for line in inputFile:
+				appended = ''
+				curRow = line.rstrip().split(',')
+				if (curRow[0] == '-1' or curRow[0] == '50'):  # end of an episode
+					appended = ', NA, NA'
+
+				else:
+					[action_node_id, bubble_size, bubble_scale] = list(map(int, (curRow[2:5])))
+					if pre_acton_node_id == None:
+						appended = ', NA, NA'
+					else:
+						if (parentHm.get(pre_acton_node_id) == action_node_id):
+							appended += ', bottomUp, '
+						elif (childrenHm.get(pre_acton_node_id) != None and 
+						      action_node_id in childrenHm[pre_acton_node_id]):
+							appended += ', topdown, '
+						elif (action_node_id == pre_acton_node_id):
+							appended += ', alpha, '
+						else:
+							appended += ', NA, '
+
+						if (action_node_id == pre_acton_node_id):
+							if (pre_bubble_scale == bubble_scale and pre_bubble_size == bubble_size):
+								appended += 'recurrence'
+							elif (bubble_scale > pre_bubble_scale):
+								appended += 'elaboration'
+							elif (bubble_scale < pre_bubble_scale and bubble_size > pre_bubble_size):
+								appended += 'summary'
+							else:
+								appended += 'restatement'
+						else:
+							appended += 'sequence'
+
+				pre_acton_node_id, pre_bubble_size, pre_bubble_scale = action_node_id, bubble_size, bubble_scale
+				outputFile.write(line.rstrip('\n') + appended + '\n')
+
+
+	def readAMTBatch(self, args):
+		i = 0
+		for arg in args:
+			with open('AMT_rewards/' + arg) as f:
+				next(f)
+				for line in f:
+					i += 1
+					curRow = line.rstrip().split(',')
+					Qvalues = curRow[-3:]
+					[Q1, Q2, Q3] = list(map(Parser._extractNumber, Qvalues))
+					# always Q1 should be the correct answer
+					rewardWithoutE = (3 - 2 * Q1) * Q2 * Q3 + 3.6 * (2 - 2 * Q1)
+					self.rewardsWithoutE.append(rewardWithoutE)
+		#pdb.set_trace()
+
+
+	@staticmethod
+	def _extractStructure(structureFile):
+		file = open(structureFile, 'r')
+		childrenHm, parentHm = dict(), dict()
+		next(file)
+		for line in file:
+			curRow = line.rstrip().replace('"', '').split(',')
+			node_id = int(curRow[0])
+			parent = 'NA' if curRow[2] == 'NA' else int(curRow[2])
+			children = 'NA' if curRow[3] == 'NA' else list(map(int, curRow[3:]))
+			if (parent != 'NA'):
+				parentHm[node_id] = parent
+			if (children != 'NA'):
+				childrenHm[node_id] = children
+		return parentHm, childrenHm
+
+
+
+	@staticmethod
+	def _convertSingleToArray(actionSingleVal):
+		action = []
+		question = actionSingleVal // 9 + 1
+		action.append(question)
+		actionSingleVal = actionSingleVal % 9
+		action.append(actionSingleVal // 3)
+		action.append(actionSingleVal % 3)	
+
+
+	@staticmethod
+	def _extractNumber(val):
+		return int(list(filter(str.isdigit, val))[0])
 
 
 if __name__ == '__main__':
+
+	# parser = Parser()
+	# # several_csvs = ['initial_csvs/Task1_6.csv', 'initial_csvs/Task1_8.csv', 
+	# # 				  'initial_csvs/Task1_9.csv', 'initial_csvs/Task1_10.csv', 'initial_csvs/Task1_11.csv']
+	# several_csvs = ['initial_csvs/Task1_1.csv', 'initial_csvs/Task1_2.csv', 
+	#                 'initial_csvs/Task1_3.csv', 'initial_csvs/Task1_4.csv', 'initial_csvs/Task1_5.csv']
+	# parser.parseInit(several_csvs)
+
+	# # parser.generateRandomDataset(100)
+	# # parser.writeToFile('outputs/output1_several_layer{0}_0-4.csv'.format(parser.layer))
+
+	# several_rewards = ['AMT_rewards/AMT1_1_layer2_1-0.csv', 
+	#                    'AMT_rewards/AMT1_345_layer2_0-8.csv', 'AMT_rewards/AMT1_2_layer2_1-0.csv']
+	# parser.readAMTBatch(several_rewards)
+	# several_outputs = ['outputs/output1_1_layer2_1-0.csv','outputs/output1_3_layer2_0-8.csv', 
+	# 				   'outputs/output1_4_layer2_0-8.csv', 'outputs/output1_5_layer2_0-8.csv', 'outputs/output1_2_layer2_1-0.csv']
+	# # parser.writeBackMemory(several_outputs)
+
+
+	# non-functional part
 	parser = Parser()
-	parser.parseInit('state.csv')
-	parser.generateRandomDataset()
-	parser.writeToFile('output.csv')
-	pdb.set_trace()
+	# several_csvs = ['initial_csvs/Task1_6.csv', 'initial_csvs/Task1_8.csv', 
+	# 				  'initial_csvs/Task1_9.csv', 'initial_csvs/Task1_10.csv', 'initial_csvs/Task1_11.csv']
+	several_csvs = ['initial_csvs/Task1_1.csv', 'initial_csvs/Task1_2.csv', 
+	                'initial_csvs/Task1_3.csv', 'initial_csvs/Task1_4.csv', 'initial_csvs/Task1_5.csv']
+	parser.parseInit(several_csvs)
+	several_rewards = ['AMT1_1_layer2_1-0.csv', 
+	                   'AMT1_345_layer2_0-8.csv', 'AMT1_2_layer2_1-0.csv']
+	parser.readAMTBatch(several_rewards)
+	several_outputs = ['output1_1_layer2_1-0.csv','output1_3_layer2_0-8.csv', 
+					   'output1_4_layer2_0-8.csv', 'output1_5_layer2_0-8.csv', 'output1_2_layer2_1-0.csv']
+
+	# generate plots 
+	parser.appendDiscourseAndStructure('node_hierarchy.csv', several_outputs)
+
+	# parser.appendToAMTRewardsAndBubbleLen(several_outputs, several_rewards)
+
+
+
+	
+
+	
